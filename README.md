@@ -304,4 +304,167 @@ For support and questions:
 ---
 
 **Built with ❤️ for the decentralized future**
-# Lend-Aura
+# 🌟 Lend-Aura
+
+**A Revolutionary DeFi Lending Platform on Aptos Blockchain**
+
+Lend-Aura is a decentralized finance (DeFi) application that enables users to lend and borrow cryptocurrency using NFT collateral. Built on the Aptos blockchain for high performance and low transaction costs.
+
+## ✨ Features
+
+### 🏦 Core Lending Features
+- **NFT-Backed Loans**: Use your property NFTs as collateral for loans
+- **Competitive Interest Rates**: Earn attractive yields by lending APT tokens
+- **Automated Liquidation**: Smart contract-powered auction system for defaulted loans
+- **Real-time Analytics**: Track your portfolio performance and loan metrics
+
+### 🎯 User Experiences
+- **For Borrowers**: 
+  - Mint property NFTs with verified valuations
+  - Create loan requests with custom terms
+  - Manage active loans and repayment schedules
+  
+- **For Lenders**: 
+  - Browse and fund loan opportunities
+  - Diversify lending portfolio across multiple borrowers
+  - Participate in liquidation auctions
+
+### 🔧 Technical Features
+- **Aptos Integration**: Built on high-performance Aptos blockchain
+- **Petra Wallet Support**: Seamless wallet connection and transaction signing
+- **Modern UI/UX**: Beautiful, responsive interface built with React + Tailwind CSS
+- **Real-time Updates**: Live data synchronization with blockchain state
+
+## 🏗️ Architecture
+
+### Frontend Stack
+- **React 18** with TypeScript
+- **Vite** for fast development and building
+- **Tailwind CSS** for beautiful styling
+- **Framer Motion** for smooth animations
+- **TanStack Query** for efficient data fetching
+
+### Blockchain Integration
+- **Aptos Move Contracts** for core lending logic
+- **@aptos-labs/ts-sdk** for blockchain interaction
+- **Petra Wallet** integration for user authentication
+
+### Smart Contracts
+- **Property NFT Module**: Handle property tokenization
+- **Loan Vault Module**: Manage loan lifecycle
+- **Auction House Module**: Automate liquidation process
+- **Registry Module**: Track borrower reputation
+
+## 🚀 Quick Start
+
+### Prerequisites
+- Node.js 18+ 
+- npm or yarn
+- Petra Wallet browser extension
+
+### Installation
+
+1. **Clone the repository**
+```bash
+git clone https://github.com/BALAJIBHARGAV6/Lend-Aura.git
+cd Lend-Aura
+```
+
+2. **Install frontend dependencies**
+```bash
+cd frontend
+npm install
+```
+
+3. **Start development server**
+```bash
+npm run dev
+```
+
+4. **Open your browser**
+Navigate to `http://localhost:3000`
+
+### Building for Production
+
+```bash
+npm run build
+```
+
+## 🌐 Live Demo
+
+- **Frontend**: [Visit Lend-Aura](http://localhost:3000) (when running locally)
+- **Smart Contracts**: Deployed on Aptos Devnet
+- **Contract Address**: `0x593c05afb0b61418fd5c87aa150f57ed70eb4761fe555645f4822cb374ddae0f`
+
+## 📱 Pages & Features
+
+### 🏠 Dashboard
+- Platform overview and statistics
+- Your lending/borrowing activity
+- Quick access to main features
+
+### 💰 Lend Page
+- Browse active loan requests
+- Filter by interest rate, duration, amount
+- Fund promising opportunities
+
+### 🏦 Borrow Page
+- Mint property NFTs
+- Create loan requests
+- Manage your active loans
+
+### 📊 Portfolio Page
+- Track your investments
+- View loan history and performance
+- Monitor reputation score
+
+### ⚡ Auctions Page
+- Participate in liquidation auctions
+- Bid on defaulted collateral
+- Track auction results
+
+## 🔧 Technical Details
+
+### Smart Contract Functions
+- `mint_property_nft()` - Create property NFTs
+- `create_loan_request()` - Request loans using NFT collateral
+- `fund_loan()` - Lend APT to borrowers
+- `repay_loan()` - Repay loans with interest
+- `place_bid()` - Bid in liquidation auctions
+
+### Key Technologies
+- **TypeScript**: End-to-end type safety
+- **React Query**: Efficient data synchronization
+- **Tailwind CSS**: Utility-first styling
+- **Aptos Move**: High-performance smart contracts
+
+## 🤝 Contributing
+
+We welcome contributions! Please see our contributing guidelines:
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🙋‍♂️ Support
+
+- **Issues**: [GitHub Issues](https://github.com/BALAJIBHARGAV6/Lend-Aura/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/BALAJIBHARGAV6/Lend-Aura/discussions)
+
+## 🎉 Acknowledgments
+
+- Aptos Foundation for the amazing blockchain infrastructure
+- Petra Wallet team for the excellent wallet integration
+- The DeFi community for inspiration and feedback
+
+---
+
+**Built with ❤️ on Aptos blockchain**
+
+*Revolutionizing decentralized lending, one transaction at a time.*
