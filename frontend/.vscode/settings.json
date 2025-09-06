@@ -1,0 +1,29 @@
+{
+  "css.validate": false,
+  "scss.validate": false,
+  "less.validate": false,
+  "tailwindCSS.includeLanguages": {
+    "html": "html",
+    "javascript": "javascript",
+    "typescript": "typescript",
+    "typescriptreact": "typescriptreact",
+    "css": "css",
+    "scss": "css"
+  },
+  "tailwindCSS.experimental.classRegex": [
+    "class[Name]*\\s*[:=]\\s*['\"]([^'\"]*)['\"]",
+    "className\\s*[:=]\\s*['\"]([^'\"]*)['\"]",
+    "\\b(?:const|let|var)\\s+\\w+\\s*=\\s*['\"]([^'\"]*)['\"]"
+  ],
+  "files.associations": {
+    "*.css": "tailwindcss"
+  },
+  "css.customData": [
+    ".vscode/css_custom_data.json"
+  ],
+  "tailwindCSS.emmetCompletions": true,
+  "editor.quickSuggestions": {
+    "strings": "on"
+  },
+  "typescript.preferences.includePackageJsonAutoImports": "on"
+}

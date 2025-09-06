@@ -1,0 +1,17 @@
+[package]
+name = "AuraLend"
+version = "1.0.0"
+authors = ["Aura Lend Team"]
+
+[addresses]
+aura_lend = "0x593c05afb0b61418fd5c87aa150f57ed70eb4761fe555645f4822cb374ddae0f"
+
+[dev-addresses]
+aura_lend = "0x42"
+
+[dependencies.AptosFramework]
+git = "https://github.com/aptos-labs/aptos-core.git"
+rev = "mainnet"
+subdir = "aptos-move/framework/aptos-framework"
+
+[dev-dependencies]

@@ -1,0 +1,19 @@
+{
+  "deployment": {
+    "network": "devnet",
+    "contract_address": "0x593c05afb0b61418fd5c87aa150f57ed70eb4761fe555645f4822cb374ddae0f",
+    "transaction_hash": "0x7254ae9876b8eeb4a371fd513d64e364a0c72fd3a9830d424f2f6b43fe48d2a3",
+    "deployment_time": "2025-09-05T13:31:14Z",
+    "gas_used": 14330,
+    "profile": "aura-lend-dev",
+    "modules": [
+      "events",
+      "auction_house", 
+      "registry",
+      "property_nft",
+      "loan_vault"
+    ],
+    "explorer_link": "https://explorer.aptoslabs.com/account/0x593c05afb0b61418fd5c87aa150f57ed70eb4761fe555645f4822cb374ddae0f?network=devnet",
+    "transaction_link": "https://explorer.aptoslabs.com/txn/0x7254ae9876b8eeb4a371fd513d64e364a0c72fd3a9830d424f2f6b43fe48d2a3?network=devnet"
+  }
+}
