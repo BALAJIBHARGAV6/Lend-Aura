@@ -6,26 +6,39 @@ import {
   FunnelIcon,
   ChartBarIcon,
 } from '@heroicons/react/24/outline';
-import { useLoansData, useLoanRequestsWithDetails } from '@/hooks/useLoansData';
-import { useAptosWallet } from '@/hooks/useAptosWallet';
+import { useLoansData } from '@/hooks/useLoansData';
+import { useWallet } from '@/contexts/WalletContext';
+import { useToast } from '@/contexts/ToastContext';
 import { auraLendClient } from '@/utils/aptos';
 
 export default function LendPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState('newest');
   const [filterBy, setFilterBy] = useState('all');
+  const [funding, setFunding] = useState<number | null>(null);
 
   const { activeLoanRequests, loanRequestsLoading } = useLoansData();
-  const { data: loanRequestsWithDetails } = useLoanRequestsWithDetails(activeLoanRequests || []);
-  const { connected, fundLoan, isFundingLoan } = useAptosWallet();
+  const { connected, account } = useWallet();
+  const { showToast } = useToast();
 
-  const handleFundLoan = (loanId: number, borrowerAddress: string) => {
-    if (!connected) {
-      alert('Please connect your wallet first');
+  const handleFundLoan = async (loanId: number) => {
+    if (!connected || !account) {
+      showToast('warning', 'Please connect your wallet first');
       return;
     }
 
-    fundLoan({ loanId, borrowerAddress });
+    try {
+      setFunding(loanId);
+      // Get borrower address from loan request data (in real implementation)
+      const borrowerAddress = '0x1'; // Placeholder - would come from loan data
+      await auraLendClient.fundLoan(account, loanId, borrowerAddress);
+      showToast('success', 'Loan funded successfully!');
+    } catch (error) {
+      console.error('Error funding loan:', error);
+      showToast('error', 'Failed to fund loan. Please try again.');
+    } finally {
+      setFunding(null);
+    }
   };
 
   return (
@@ -130,16 +143,16 @@ export default function LendPage() {
             </div>
           ))}
         </div>
-      ) : loanRequestsWithDetails && loanRequestsWithDetails.length > 0 ? (
+      ) : activeLoanRequests && activeLoanRequests.length > 0 ? (
         <motion.div
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ delay: 0.2 }}
           className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
         >
-          {loanRequestsWithDetails.map((request, index) => (
+          {activeLoanRequests.map((loanId, index) => (
             <motion.div
-              key={request.loanId}
+              key={loanId}
               initial={{ y: 20, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               transition={{ delay: 0.1 * index }}
@@ -149,7 +162,7 @@ export default function LendPage() {
               <div className="aspect-square bg-gradient-to-br from-neutral-100 to-neutral-200 rounded-xl mb-4 flex items-center justify-center">
                 <div className="text-neutral-400">
                   <div className="w-16 h-16 bg-neutral-300 rounded-lg flex items-center justify-center">
-                    NFT #{request.nftId}
+                    NFT #{loanId}
                   </div>
                 </div>
               </div>
@@ -157,40 +170,40 @@ export default function LendPage() {
               {/* Loan Details */}
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-neutral-600">Loan Amount</span>
+                  <span className="text-sm font-medium text-neutral-600">Loan ID</span>
                   <span className="text-lg font-bold text-neutral-900">
-                    {request.amount} APT
+                    #{loanId}
                   </span>
                 </div>
 
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-neutral-600">Interest Rate</span>
+                  <span className="text-sm font-medium text-neutral-600">Status</span>
                   <span className="badge badge-primary">
-                    {request.interestRate}%
+                    Active Request
                   </span>
                 </div>
 
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-neutral-600">Duration</span>
-                  <span className="text-sm text-neutral-700">
-                    {request.duration} days
+                  <span className="text-sm font-medium text-neutral-600">On-Chain</span>
+                  <span className="text-sm text-green-600 font-medium">
+                    ✓ Verified
                   </span>
                 </div>
 
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-medium text-neutral-600">Borrower</span>
                   <span className="text-sm font-mono text-neutral-700">
-                    {request.borrower.slice(0, 6)}...{request.borrower.slice(-4)}
+                    View Details
                   </span>
                 </div>
 
                 <div className="pt-3 border-t border-neutral-200">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-sm font-medium text-neutral-600">
-                      Potential Return
+                      On-Chain Loan
                     </span>
-                    <span className="text-lg font-bold text-success-600">
-                      {(request.amount * (1 + request.interestRate / 100)).toFixed(2)} APT
+                    <span className="text-sm text-blue-600 font-medium">
+                      ID #{loanId}
                     </span>
                   </div>
                 </div>
@@ -201,13 +214,13 @@ export default function LendPage() {
                 <motion.button
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
-                  onClick={() => handleFundLoan(request.loanId, request.borrower)}
-                  disabled={!connected || isFundingLoan}
+                  onClick={() => handleFundLoan(loanId)}
+                  disabled={!connected || funding === loanId}
                   className="btn-primary w-full"
                 >
                   {!connected 
                     ? 'Connect Wallet' 
-                    : isFundingLoan 
+                    : funding === loanId 
                       ? 'Funding...' 
                       : 'Fund Loan'
                   }

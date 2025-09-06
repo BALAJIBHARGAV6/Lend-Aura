@@ -1,0 +1,20 @@
+{
+  "name": "Land Property NFT - India",
+  "description": "Land property in India valued at 10000 APT for DeFi lending",
+  "image": "ipfs://QmSamplePropertyImage123456789",
+  "external_url": "https://aura-lend.com",
+  "attributes": [
+    {
+      "trait_type": "Property Type",
+      "value": "Land"
+    },
+    {
+      "trait_type": "Location", 
+      "value": "India"
+    },
+    {
+      "trait_type": "Estimated Value",
+      "value": "10000 APT"
+    }
+  ]
+}

@@ -1,0 +1,36 @@
+{
+  "name": "Property NFT #001",
+  "description": "High-value residential property for DeFi lending collateral",
+  "image": "ipfs://QmPropertyImage123456789abcdef",
+  "external_url": "https://aura-lend.com",
+  "attributes": [
+    {
+      "trait_type": "Property Type",
+      "value": "Residential"
+    },
+    {
+      "trait_type": "Location",
+      "value": "Premium District"
+    },
+    {
+      "trait_type": "Bedrooms",
+      "value": "3"
+    },
+    {
+      "trait_type": "Bathrooms",
+      "value": "2"
+    },
+    {
+      "trait_type": "Square Feet",
+      "value": "1500"
+    },
+    {
+      "trait_type": "Year Built",
+      "value": "2020"
+    },
+    {
+      "trait_type": "Property Value",
+      "value": "$250,000"
+    }
+  ]
+}

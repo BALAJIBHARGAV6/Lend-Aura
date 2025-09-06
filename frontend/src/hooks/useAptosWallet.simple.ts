@@ -10,9 +10,9 @@ export const useAptosWallet = () => {
 
   // Fetch wallet balance
   const { data: walletBalance, isLoading: balanceLoading } = useQuery({
-    queryKey: ['walletBalance', account?.address],
+    queryKey: ['walletBalance', account],
     queryFn: async () => {
-      if (!account?.address) return null;
+      if (!account) return null;
       
       try {
         // For mock wallet, return a placeholder balance
@@ -22,7 +22,7 @@ export const useAptosWallet = () => {
         return null;
       }
     },
-    enabled: connected && !!account?.address,
+    enabled: connected && !!account,
     refetchInterval: 30000,
   });
 

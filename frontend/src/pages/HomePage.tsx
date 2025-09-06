@@ -4,20 +4,7 @@ import { motion } from 'framer-motion';
 import { Earth3D } from '../components/ui/Earth3D';
 import { useWallet } from '../contexts/WalletContext';
 import { useToast } from '../contexts/ToastContext';
-
-// Mock data for demonstration
-const mockStats = {
-  totalValueLocked: 125000000,
-  totalLoans: 8432,
-  totalNFTs: 15678,
-  activeUsers: 3245
-};
-
-const mockRecentActivity = [
-  { id: 1, type: 'loan', nft: 'Property NFT #1234', amount: '50 APT', status: 'active' },
-  { id: 2, type: 'repay', nft: 'Property NFT #567', amount: '25 APT', status: 'completed' },
-  { id: 3, type: 'auction', nft: 'Property NFT #890', amount: '15 APT', status: 'bidding' },
-];
+import { useLoansData, usePlatformStats } from '../hooks/useLoansData';
 
 const features = [
   {
@@ -55,6 +42,11 @@ const features = [
 export default function HomePage() {
   const { connected, account } = useWallet();
   const { showToast } = useToast();
+  
+  // Use real on-chain data instead of mock data
+  const { data: platformStats, isLoading: statsLoading } = usePlatformStats();
+  const { activeLoanRequests, activeLoans } = useLoansData();
+  
   const [displayStats, setDisplayStats] = useState({
     totalValueLocked: 0,
     totalLoans: 0,
@@ -62,8 +54,10 @@ export default function HomePage() {
     activeUsers: 0
   });
 
-  // Animate stats on load
+  // Animate stats when real data loads
   useEffect(() => {
+    if (!platformStats) return;
+
     const animateValue = (start: number, end: number, setter: (value: number) => void) => {
       const duration = 2000;
       const stepTime = 50;
@@ -82,27 +76,38 @@ export default function HomePage() {
       }, stepTime);
     };
 
+    // Use real on-chain statistics
+    const realStats = {
+      totalValueLocked: platformStats.vault.totalVolume || 0,
+      totalLoans: platformStats.vault.activeLoansCount + platformStats.vault.activeLoanRequestsCount,
+      totalNFTs: platformStats.vault.activeLoansCount || 0, // NFTs used as collateral
+      activeUsers: platformStats.registry.totalBorrowers || 0
+    };
+
     setTimeout(() => {
-      animateValue(0, mockStats.totalValueLocked, (value) => 
+      animateValue(0, realStats.totalValueLocked, (value) => 
         setDisplayStats(prev => ({ ...prev, totalValueLocked: value }))
       );
-      animateValue(0, mockStats.totalLoans, (value) => 
+      animateValue(0, realStats.totalLoans, (value) => 
         setDisplayStats(prev => ({ ...prev, totalLoans: value }))
       );
-      animateValue(0, mockStats.totalNFTs, (value) => 
+      animateValue(0, realStats.totalNFTs, (value) => 
         setDisplayStats(prev => ({ ...prev, totalNFTs: value }))
       );
-      animateValue(0, mockStats.activeUsers, (value) => 
+      animateValue(0, realStats.activeUsers, (value) => 
         setDisplayStats(prev => ({ ...prev, activeUsers: value }))
       );
     }, 500);
-  }, []);
+  }, [platformStats]);
 
   const formatCurrency = (amount: number) => {
     if (amount >= 1000000) {
-      return `$${(amount / 1000000).toFixed(1)}M`;
+      return `${(amount / 1000000).toFixed(1)}M APT`;
     }
-    return `$${amount.toLocaleString()}`;
+    if (amount >= 1000) {
+      return `${(amount / 1000).toFixed(1)}K APT`;
+    }
+    return `${amount.toLocaleString()} APT`;
   };
 
   return (
@@ -277,39 +282,93 @@ export default function HomePage() {
 
           <div className="max-w-4xl mx-auto">
             <div className="space-y-4">
-              {mockRecentActivity.map((activity, index) => (
-                <motion.div
-                  key={activity.id}
-                  initial={{ opacity: 0, x: -20 }}
-                  whileInView={{ opacity: 1, x: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ duration: 0.5, delay: index * 0.1 }}
-                  className="card flex items-center justify-between p-6"
-                >
-                  <div className="flex items-center space-x-4">
-                    <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
-                      activity.type === 'loan' ? 'bg-blue-100 text-blue-600' :
-                      activity.type === 'repay' ? 'bg-green-100 text-green-600' :
-                      'bg-purple-100 text-purple-600'
-                    }`}>
-                      {activity.type === 'loan' ? '💰' : activity.type === 'repay' ? '✅' : '⚡'}
-                    </div>
-                    <div>
-                      <div className="font-semibold text-gray-900 capitalize">
-                        {activity.type} - {activity.nft}
+              {statsLoading ? (
+                // Loading state
+                Array.from({length: 3}).map((_, index) => (
+                  <div key={index} className="card flex items-center justify-between p-6">
+                    <div className="flex items-center space-x-4">
+                      <div className="w-12 h-12 rounded-full bg-gray-200 animate-pulse"></div>
+                      <div className="space-y-2">
+                        <div className="h-4 bg-gray-200 rounded animate-pulse w-32"></div>
+                        <div className="h-3 bg-gray-200 rounded animate-pulse w-24"></div>
                       </div>
-                      <div className="text-gray-600">Amount: {activity.amount}</div>
+                    </div>
+                    <div className="text-right">
+                      <div className="h-4 bg-gray-200 rounded animate-pulse w-20"></div>
                     </div>
                   </div>
-                  <div className={`badge ${
-                    activity.status === 'active' ? 'badge-primary' :
-                    activity.status === 'completed' ? 'badge-success' :
-                    'badge-warning'
-                  }`}>
-                    {activity.status}
-                  </div>
-                </motion.div>
-              ))}
+                ))
+              ) : (
+                // Real activity data
+                <>
+                  {activeLoanRequests && activeLoanRequests.length > 0 && (
+                    <motion.div
+                      initial={{ opacity: 0, x: -20 }}
+                      whileInView={{ opacity: 1, x: 0 }}
+                      viewport={{ once: true }}
+                      transition={{ duration: 0.5 }}
+                      className="card flex items-center justify-between p-6"
+                    >
+                      <div className="flex items-center space-x-4">
+                        <div className="w-12 h-12 rounded-full flex items-center justify-center bg-blue-100 text-blue-600">
+                          💰
+                        </div>
+                        <div>
+                          <div className="font-semibold text-gray-900">
+                            Loan Request #{activeLoanRequests[0]} - Property NFT
+                          </div>
+                          <div className="text-gray-600">New loan request on blockchain</div>
+                        </div>
+                      </div>
+                      <div className="badge badge-primary">Active</div>
+                    </motion.div>
+                  )}
+                  
+                  {activeLoans && activeLoans.length > 0 && (
+                    <motion.div
+                      initial={{ opacity: 0, x: -20 }}
+                      whileInView={{ opacity: 1, x: 0 }}
+                      viewport={{ once: true }}
+                      transition={{ duration: 0.5, delay: 0.1 }}
+                      className="card flex items-center justify-between p-6"
+                    >
+                      <div className="flex items-center space-x-4">
+                        <div className="w-12 h-12 rounded-full flex items-center justify-center bg-green-100 text-green-600">
+                          ✅
+                        </div>
+                        <div>
+                          <div className="font-semibold text-gray-900">
+                            Active Loan #{activeLoans[0]} - Property NFT
+                          </div>
+                          <div className="text-gray-600">Loan successfully funded on-chain</div>
+                        </div>
+                      </div>
+                      <div className="badge badge-success">Funded</div>
+                    </motion.div>
+                  )}
+                  
+                  {(!activeLoanRequests || activeLoanRequests.length === 0) &&
+                   (!activeLoans || activeLoans.length === 0) && (
+                    <div className="text-center py-12">
+                      <div className="text-6xl mb-4">🌟</div>
+                      <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                        Ready to Start
+                      </h3>
+                      <p className="text-gray-600 mb-6">
+                        Be the first to create a loan request or start lending on the platform!
+                      </p>
+                      <div className="flex gap-4 justify-center">
+                        <Link to="/lend" className="btn-primary">
+                          Start Lending
+                        </Link>
+                        <Link to="/borrow" className="btn-secondary">
+                          Create Loan Request
+                        </Link>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
             </div>
           </div>
         </div>

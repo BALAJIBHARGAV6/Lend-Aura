@@ -6,10 +6,15 @@ import {
   CameraIcon,
   BanknotesIcon,
 } from '@heroicons/react/24/outline';
-import { useAptosWallet } from '@/hooks/useAptosWallet';
+import { useWallet } from '@/contexts/WalletContext';
+import { useToast } from '@/contexts/ToastContext';
+import { auraLendClient } from '@/utils/aptos';
 
 export default function BorrowPage() {
   const [step, setStep] = useState(1);
+  const [loading, setLoading] = useState(false);
+  const [mintedNFTId, setMintedNFTId] = useState<number | null>(null);
+  
   const [formData, setFormData] = useState({
     propertyType: '',
     propertyValue: '',
@@ -21,33 +26,123 @@ export default function BorrowPage() {
     duration: '30',
   });
 
-  const { connected, account, mintNFT, createLoan, isMintingNFT, isCreatingLoan, userProperties } = useAptosWallet();
+  const { connected, account } = useWallet();
+  const { showToast } = useToast();
 
   const handleMintNFT = async () => {
-    if (!connected) return;
+    if (!connected || !account) {
+      showToast('warning', 'Please connect your wallet first');
+      return;
+    }
+
+    // Validate form data
+    if (!formData.documentHash || !formData.metadataUri) {
+      showToast('error', 'Please fill in both Document Hash and Metadata URI fields');
+      return;
+    }
+
+    // Check if metadata URI looks correct
+    if (!formData.metadataUri.startsWith('ipfs://')) {
+      showToast('warning', 'Metadata URI should start with "ipfs://"');
+      return;
+    }
 
     try {
-      await mintNFT({
-        valuationHash: formData.documentHash || 'QmExampleHash123',
-        metadataUri: formData.metadataUri || 'https://ipfs.io/ipfs/QmExample',
-      });
+      setLoading(true);
+      
+      // Show loading toast
+      showToast('info', 'Connecting to wallet and preparing transaction...');
+
+      // Test wallet connection first
+      const walletTest = await auraLendClient.testWalletConnection();
+      if (!walletTest.success) {
+        throw new Error(walletTest.error || 'Wallet connection failed');
+      }
+
+      console.log('Wallet connected successfully:', walletTest);
+      
+      // Show minting toast
+      showToast('info', 'Please approve the transaction in your Petra wallet...');
+
+      const result = await auraLendClient.mintPropertyNFT(
+        walletTest.account,  // Use the verified account
+        formData.documentHash,
+        formData.metadataUri
+      );
+      
+      console.log('NFT minted successfully:', result);
+      
+      // Extract NFT ID from transaction result if available
+      setMintedNFTId(1); // Placeholder - would be extracted from result
       setStep(2);
-    } catch (error) {
+      showToast('success', `Property NFT minted successfully! Transaction: ${result}`);
+    } catch (error: any) {
       console.error('Failed to mint NFT:', error);
+      
+      let errorMessage = 'Unknown error occurred';
+      
+      if (error?.message) {
+        errorMessage = error.message;
+      } else if (typeof error === 'string') {
+        errorMessage = error;
+      } else if (error?.toString) {
+        errorMessage = error.toString();
+      }
+
+      // Handle specific error cases
+      if (errorMessage.includes('User rejected') || errorMessage.includes('User denied')) {
+        errorMessage = 'Transaction was rejected by user';
+      } else if (errorMessage.includes('Could not establish connection') || errorMessage.includes('Receiving end does not exist')) {
+        errorMessage = 'Petra wallet connection lost. Please refresh the page and reconnect your wallet.';
+      } else if (errorMessage.includes('Insufficient balance') || errorMessage.includes('insufficient funds')) {
+        errorMessage = 'Insufficient APT balance for transaction';
+      } else if (errorMessage.includes('timeout') || errorMessage.includes('Transaction timeout')) {
+        errorMessage = 'Transaction timed out. Please try again.';
+      } else if (errorMessage.includes('network') || errorMessage.includes('Network')) {
+        errorMessage = 'Network error. Please check your connection to Aptos Devnet';
+      } else if (errorMessage.includes('Module not found') || errorMessage.includes('FUNCTION_NOT_FOUND')) {
+        errorMessage = 'Smart contract not found. Please check the contract deployment.';
+      } else if (errorMessage.includes('INVALID_ARGUMENT') || errorMessage.includes('Invalid argument')) {
+        errorMessage = 'Invalid parameters. Please check your document hash and metadata URI format.';
+      } else if (errorMessage.includes('SEQUENCE_NUMBER_TOO_OLD')) {
+        errorMessage = 'Transaction sequence error. Please try again.';
+      } else if (errorMessage.includes('connection') || errorMessage.includes('wallet')) {
+        errorMessage = 'Wallet connection error. Please reconnect your Petra wallet and try again.';
+      }
+
+      showToast('error', `Failed to mint NFT: ${errorMessage}`);
+      
+      // Also log detailed error for debugging
+      console.error('Detailed error info:', {
+        error,
+        message: error?.message,
+        code: error?.code,
+        data: error?.data,
+        stack: error?.stack
+      });
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleCreateLoan = async () => {
-    if (!connected || !userProperties?.length) return;
+    if (!connected || !account || !mintedNFTId) {
+      showToast('warning', 'Please complete NFT minting first');
+      return;
+    }
 
     try {
-      await createLoan({
-        nftId: userProperties[userProperties.length - 1], // Use the latest NFT
-        nftOwner: account || '', // Use the account address as NFT owner
-        amount: parseFloat(formData.loanAmount),
-        interestRate: parseFloat(formData.interestRate),
-        duration: parseInt(formData.duration) * 24 * 60 * 60, // Convert days to seconds
-      });
+      setLoading(true);
+      await auraLendClient.createLoanRequest(
+        account,
+        mintedNFTId,
+        account,
+        parseFloat(formData.loanAmount),
+        Math.floor(parseFloat(formData.interestRate) * 100), // Convert to basis points
+        parseInt(formData.duration) * 24 * 60 * 60 // Convert days to seconds
+      );
+      showToast('success', 'Loan request created successfully!');
+      setStep(3); // Success step
     } catch (error) {
       console.error('Failed to create loan:', error);
     }
@@ -170,7 +265,7 @@ export default function BorrowPage() {
                       type="text"
                       value={formData.documentHash}
                       onChange={(e) => setFormData({ ...formData, documentHash: e.target.value })}
-                      placeholder="IPFS hash of valuation document"
+                      placeholder="QmTestPropertyDoc123abcdefghijklmnopqrstuvwxyz456789"
                       className="input-field flex-1"
                     />
                     <button className="btn-secondary px-4">
@@ -178,7 +273,7 @@ export default function BorrowPage() {
                     </button>
                   </div>
                   <p className="text-xs text-neutral-500 mt-1">
-                    Upload your property valuation to IPFS and enter the hash here.
+                    Upload your property valuation to IPFS or use placeholder for testing.
                   </p>
                 </div>
 
@@ -190,7 +285,7 @@ export default function BorrowPage() {
                     type="url"
                     value={formData.metadataUri}
                     onChange={(e) => setFormData({ ...formData, metadataUri: e.target.value })}
-                    placeholder="https://ipfs.io/ipfs/QmExample..."
+                    placeholder="https://ipfs.io/ipfs/QmTestMetadata456defghijklmnopqrstuvwxyz123abc"
                     className="input-field"
                   />
                 </div>
@@ -201,10 +296,10 @@ export default function BorrowPage() {
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   onClick={handleMintNFT}
-                  disabled={isMintingNFT || !formData.propertyType}
+                  disabled={loading || !formData.propertyType}
                   className="btn-primary w-full"
                 >
-                  {isMintingNFT ? (
+                  {loading ? (
                     <>
                       <div className="spinner mr-2" />
                       Minting NFT...
@@ -363,10 +458,10 @@ export default function BorrowPage() {
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                   onClick={handleCreateLoan}
-                  disabled={isCreatingLoan || !formData.loanAmount || !formData.interestRate}
+                  disabled={loading || !formData.loanAmount || !formData.interestRate}
                   className="btn-primary w-full"
                 >
-                  {isCreatingLoan ? (
+                  {loading ? (
                     <>
                       <div className="spinner mr-2" />
                       Creating Loan...

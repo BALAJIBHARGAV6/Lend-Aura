@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { 
   MegaphoneIcon, 
@@ -7,7 +7,9 @@ import {
   UserGroupIcon,
 } from '@heroicons/react/24/outline';
 import { useAuctionsData, useAuctionsWithDetails, useCountdown } from '@/hooks/useLoansData';
-import { useAptosWallet } from '@/hooks/useAptosWallet';
+import { useWallet } from '@/contexts/WalletContext';
+import { useToast } from '@/contexts/ToastContext';
+import { auraLendClient } from '@/utils/aptos';
 
 interface CountdownTimerProps {
   endTime: number;
@@ -35,26 +37,38 @@ function CountdownTimer({ endTime }: CountdownTimerProps) {
 
 export default function AuctionsPage() {
   const { activeAuctions, auctionsLoading } = useAuctionsData();
-  const { data: auctionsWithDetails } = useAuctionsWithDetails(activeAuctions || []);
-  const { connected, placeBid, isPlacingBid } = useAptosWallet();
+  // Convert auction IDs to the format expected by useAuctionsWithDetails
+  const auctionsForDetails = (activeAuctions || []).map(auctionId => ({ 
+    auctionId, 
+    needsDetails: true 
+  }));
+  const { data: auctionsWithDetails } = useAuctionsWithDetails(auctionsForDetails);
+  const { connected, account } = useWallet();
+  const { showToast } = useToast();
+  const [biddingAuction, setBiddingAuction] = useState<number | null>(null);
 
-  const handlePlaceBid = (auctionId: number, lenderAddress: string, currentBid: number) => {
-    if (!connected) {
-      alert('Please connect your wallet first');
+  const handlePlaceBid = async (auctionId: number, lenderAddress: string, currentBid: number) => {
+    if (!connected || !account) {
+      showToast('warning', 'Please connect your wallet first');
       return;
     }
 
     const bidAmount = prompt(`Enter your bid amount (current: ${currentBid} APT):`);
     if (!bidAmount || parseFloat(bidAmount) <= currentBid) {
-      alert('Bid must be higher than current bid');
+      showToast('warning', 'Bid must be higher than current bid');
       return;
     }
 
-    placeBid({
-      auctionId,
-      lenderAddress,
-      bidAmount: parseFloat(bidAmount),
-    });
+    try {
+      setBiddingAuction(auctionId);
+      await auraLendClient.placeBid(account, auctionId, lenderAddress, parseFloat(bidAmount));
+      showToast('success', 'Bid placed successfully!');
+    } catch (error) {
+      console.error('Error placing bid:', error);
+      showToast('error', 'Failed to place bid. Please try again.');
+    } finally {
+      setBiddingAuction(null);
+    }
   };
 
   return (
@@ -193,7 +207,7 @@ export default function AuctionsPage() {
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                     onClick={() => handlePlaceBid(auction.auctionId, auction.lender, auction.currentBid)}
-                    disabled={!connected || isPlacingBid}
+                    disabled={!connected || biddingAuction !== null}
                     className={`w-full py-3 px-4 rounded-xl font-semibold transition-all duration-200 ${
                       !connected
                         ? 'bg-neutral-100 text-neutral-500 cursor-not-allowed'
@@ -204,7 +218,7 @@ export default function AuctionsPage() {
                   >
                     {!connected ? (
                       'Connect Wallet to Bid'
-                    ) : isPlacingBid ? (
+                    ) : biddingAuction !== null ? (
                       <>
                         <div className="spinner mr-2" />
                         Placing Bid...

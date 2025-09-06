@@ -131,23 +131,128 @@ export class AuraLendClient {
     valuationHash: string,
     metadataUri: string
   ): Promise<string> {
-    const transaction = await this.aptos.transaction.build.simple({
-      sender: account.accountAddress,
-      data: {
+    try {
+      console.log('Starting mintPropertyNFT with params:', {
+        account: typeof account === 'string' ? account : account?.accountAddress || account?.address,
+        valuationHash,
+        metadataUri
+      });
+
+      // Check if Petra wallet is available
+      const petra = (window as any).aptos;
+      if (!petra) {
+        throw new Error('Petra wallet not found. Please install Petra wallet extension.');
+      }
+
+      // Try to connect if not connected
+      let walletAccount;
+      try {
+        walletAccount = await petra.account();
+      } catch (error) {
+        console.log('Wallet not connected, attempting to connect...');
+        try {
+          await petra.connect();
+          walletAccount = await petra.account();
+        } catch (connectError) {
+          throw new Error('Failed to connect to Petra wallet. Please connect manually and try again.');
+        }
+      }
+
+      if (!walletAccount?.address) {
+        throw new Error('Could not get wallet account. Please reconnect your Petra wallet.');
+      }
+
+      console.log('Connected wallet address:', walletAccount.address);
+      
+      if (!valuationHash || !metadataUri) {
+        throw new Error('Valuation hash and metadata URI are required');
+      }
+
+      // Ensure IPFS hash format is correct - should not include 'ipfs://' prefix for valuation hash
+      const cleanValuationHash = valuationHash.replace('ipfs://', '');
+      
+      // Ensure metadata URI has proper format
+      const properMetadataUri = metadataUri.startsWith('ipfs://') ? metadataUri : `ipfs://${metadataUri}`;
+
+      console.log('Processed parameters:', {
+        cleanValuationHash,
+        properMetadataUri,
+        contractFunction: `${MODULES.PROPERTY_NFT}::mint_property_nft`
+      });
+
+      // Build transaction payload using correct format
+      const payload = {
+        type: "entry_function_payload",
         function: `${MODULES.PROPERTY_NFT}::mint_property_nft`,
-        functionArguments: [
-          Array.from(new TextEncoder().encode(valuationHash)),
-          metadataUri,
+        type_arguments: [],
+        arguments: [
+          cleanValuationHash,  // Send as string directly
+          properMetadataUri,   // Send as proper IPFS URI
         ],
-      },
-    });
+      };
 
-    const response = await this.aptos.signAndSubmitTransaction({
-      signer: account,
-      transaction,
-    });
+      console.log('Final transaction payload:', JSON.stringify(payload, null, 2));
 
-    return response.hash;
+      // Submit transaction using Petra wallet with new format
+      console.log('Submitting transaction...');
+      
+      const pendingTransaction = await Promise.race([
+        petra.signAndSubmitTransaction({ payload }),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Transaction timeout after 30 seconds')), 30000)
+        )
+      ]);
+      
+      console.log('Transaction submitted:', pendingTransaction);
+
+      // Wait for transaction to be processed
+      if (pendingTransaction && pendingTransaction.hash) {
+        console.log('Transaction hash:', pendingTransaction.hash);
+        
+        // Wait for confirmation
+        console.log('Waiting for transaction confirmation...');
+        
+        try {
+          // Try to wait for the transaction on chain
+          await this.aptos.waitForTransaction({ transactionHash: pendingTransaction.hash });
+          console.log('✅ Transaction confirmed on blockchain!');
+        } catch (waitError) {
+          console.log('Could not wait for transaction confirmation, but transaction was submitted');
+        }
+        
+        return pendingTransaction.hash;
+      } else {
+        throw new Error('Transaction failed - no hash returned');
+      }
+
+    } catch (error) {
+      console.error('Error in mintPropertyNFT:', error);
+      
+      // Enhanced error logging
+      if (error?.message) {
+        console.error('Error message:', error.message);
+      }
+      if (error?.code) {
+        console.error('Error code:', error.code);
+      }
+      if (error?.data) {
+        console.error('Error data:', error.data);
+      }
+      if (error?.response) {
+        console.error('Error response:', error.response);
+      }
+      
+      // Re-throw with more user-friendly message
+      if (error?.message?.includes('FUNCTION_NOT_FOUND')) {
+        throw new Error('Smart contract function not found. The contract may not be properly deployed.');
+      } else if (error?.message?.includes('INSUFFICIENT_BALANCE')) {
+        throw new Error('Insufficient APT balance for transaction fees.');
+      } else if (error?.message?.includes('USER_CANCEL')) {
+        throw new Error('Transaction cancelled by user.');
+      } else {
+        throw new Error(error?.message || 'Transaction failed. Please try again.');
+      }
+    }
   }
 
   async getPropertyNFT(propertyId: number, owner: string): Promise<PropertyNFT | null> {
@@ -277,6 +382,11 @@ export class AuraLendClient {
 
   async getActiveLoanRequests(): Promise<number[]> {
     try {
+      console.warn('getActiveLoanRequests temporarily disabled - contract function not found');
+      return []; // Return empty array temporarily
+      
+      // Uncomment when contract is updated
+      /*
       const result = await this.aptos.view({
         payload: {
           function: `${MODULES.LOAN_VAULT}::get_active_loan_requests`,
@@ -285,6 +395,7 @@ export class AuraLendClient {
       });
 
       return result[0] as number[];
+      */
     } catch (error) {
       console.error('Error fetching active loan requests:', error);
       return [];
@@ -293,6 +404,11 @@ export class AuraLendClient {
 
   async getActiveLoans(): Promise<number[]> {
     try {
+      console.warn('getActiveLoans temporarily disabled - contract function not found');
+      return []; // Return empty array temporarily
+      
+      // Uncomment when contract is updated
+      /*
       const result = await this.aptos.view({
         payload: {
           function: `${MODULES.LOAN_VAULT}::get_active_loans`,
@@ -301,6 +417,7 @@ export class AuraLendClient {
       });
 
       return result[0] as number[];
+      */
     } catch (error) {
       console.error('Error fetching active loans:', error);
       return [];
@@ -536,6 +653,173 @@ export class AuraLendClient {
     } catch (error) {
       console.error('Failed to fetch APT balance:', error);
       return 0;
+    }
+  }
+
+  // Metadata generation helper
+  generatePropertyMetadata(options: {
+    propertyName?: string;
+    description?: string;
+    propertyType?: string;
+    location?: string;
+    bedrooms?: string;
+    bathrooms?: string;
+    squareFeet?: string;
+    yearBuilt?: string;
+    imageUrl?: string;
+    externalUrl?: string;
+  } = {}): string {
+    const {
+      propertyName = "Luxury Property NFT",
+      description = "High-value residential property for DeFi collateral",
+      propertyType = "Residential",
+      location = "Premium District",
+      bedrooms = "3",
+      bathrooms = "2",
+      squareFeet = "1500",
+      yearBuilt = "2020",
+      imageUrl = "ipfs://QmPropertyImageHash...",
+      externalUrl = "https://property-details.com"
+    } = options;
+
+    const metadata = {
+      "name": propertyName,
+      "description": description,
+      "image": imageUrl,
+      "external_url": externalUrl,
+      "attributes": [
+        {
+          "trait_type": "Property Type",
+          "value": propertyType
+        },
+        {
+          "trait_type": "Location",
+          "value": location
+        },
+        {
+          "trait_type": "Bedrooms",
+          "value": bedrooms
+        },
+        {
+          "trait_type": "Bathrooms",
+          "value": bathrooms
+        },
+        {
+          "trait_type": "Square Feet",
+          "value": squareFeet
+        },
+        {
+          "trait_type": "Year Built",
+          "value": yearBuilt
+        }
+      ]
+    };
+
+    return JSON.stringify(metadata, null, 2);
+  }
+
+  // Quick metadata generator with default values
+  generateQuickMetadata(): string {
+    return this.generatePropertyMetadata();
+  }
+
+  // Test function to verify wallet connection
+  async testWalletConnection(): Promise<any> {
+    try {
+      const petra = (window as any).aptos;
+      if (!petra) {
+        return { error: 'Petra wallet not found. Please install the Petra wallet extension.' };
+      }
+
+      // Try to get account info
+      let account;
+      let isConnected = false;
+      
+      try {
+        account = await petra.account();
+        isConnected = !!account?.address;
+      } catch (error) {
+        console.log('Initial account check failed, trying to connect...');
+        
+        try {
+          await petra.connect();
+          account = await petra.account();
+          isConnected = !!account?.address;
+        } catch (connectError) {
+          return { 
+            error: 'Failed to connect to Petra wallet. Please connect manually through the extension.',
+            details: connectError?.message 
+          };
+        }
+      }
+      
+      if (!isConnected || !account?.address) {
+        return { error: 'Could not establish wallet connection. Please reconnect Petra wallet.' };
+      }
+
+      const network = await petra.network();
+
+      console.log('Wallet details:', { account, network });
+
+      return {
+        success: true,
+        isConnected: true,
+        account: account.address,
+        network: network?.name || 'unknown',
+        publicKey: account?.publicKey?.slice(0, 10) + '...' // Truncate for security
+      };
+    } catch (error) {
+      console.error('Wallet connection test failed:', error);
+      return { 
+        error: error?.message || 'Unknown wallet error',
+        type: 'connection_error'
+      };
+    }
+  }
+
+  // Test mint function with detailed logging
+  async testMintNFT(valuationHash?: string, metadataUri?: string): Promise<any> {
+    try {
+      const defaultValuationHash = valuationHash || "bafkreig6f2ypsanqGpyintumlljzudw3f";
+      const defaultMetadataUri = metadataUri || "ipfs://QmbafkrEig6f2ypsanqGpyintumlljzudw3f";
+
+      console.log('🧪 Starting test mint with:', {
+        valuationHash: defaultValuationHash,
+        metadataUri: defaultMetadataUri
+      });
+
+      // First test wallet connection
+      const walletTest = await this.testWalletConnection();
+      console.log('🔌 Wallet test result:', walletTest);
+      
+      if (!walletTest.success) {
+        return walletTest;
+      }
+
+      console.log('✅ Wallet connected, proceeding with mint test...');
+
+      // Call the mint function with proper error handling
+      const result = await this.mintPropertyNFT(walletTest.account, defaultValuationHash, defaultMetadataUri);
+      
+      console.log('🎉 Mint test successful:', result);
+      return { 
+        success: true, 
+        result, 
+        transactionHash: result,
+        message: 'NFT minted successfully!'
+      };
+      
+    } catch (error) {
+      console.error('❌ Test mint failed:', error);
+      return { 
+        error: error?.message || error,
+        details: {
+          message: error?.message,
+          code: error?.code,
+          data: error?.data,
+          type: error?.constructor?.name
+        }
+      };
     }
   }
 }
